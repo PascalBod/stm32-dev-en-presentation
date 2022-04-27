@@ -1,0 +1,606 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="icon" href="favicon.ico">
+
+		<title>Bare metal</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+    	<link rel="stylesheet" href="dist/theme/pb.css">
+    	<link rel="stylesheet" href="pres-style.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+                    <h1>Bare metal software development for STM32</h1>
+					<h5>Pascal Bodin</h5>
+					<div class="pbverysmall">To enter the presentation, click the arrow to the right</div>
+                </section>
+				<section>
+					<h2>Document history</h2>
+					<table class="pbsmaller">
+						<thead>
+							<tr>
+								<th>When</th>
+								<th>What</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>24-Apr-2022</td>
+								<td>First version</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+				<section>
+					<p>This work is licensed under a <a rel="license"
+						href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">
+						Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a></p>
+				</section>
+				<section>
+					<h2>Credits</h2>
+					<ul>
+						<li><a target="_blank" href="https://github.com/hakimel/reveal.js">reveal.js</a> - Copyright (C)
+							2020 Hakim El Hattab</li>	
+					</ul>
+				</section>
+                <section>
+                    <h2>Target: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">NUCLEO-L476RG</a></h2>
+					<img src="images/nucleo-l476rg.png" height="350">
+					<div class="pbverysmall">Source: <a href="https://export.rsdelivers.com/product/stmicroelectronics/nucleo-l476rg/stmicroelectronics-stm32-nucleo-64-mcu-development/8967721"
+						target="_blank">RS</a></div>
+                </section>
+				<section>
+					<h2>Board characteristics</h2>
+					<ul>
+						<li><a href="https://www.st.com/en/microcontrollers-microprocessors/stm32l476rg.html" target="_blank">STM32L476RGT6U microcontroller</a></li>
+						<li>Integrated ST-LINK debugger/programmer</li>
+						<li>One user LED</li>
+						<li>One user pushbutton, one reset pushbutton</li>
+						<li>Arduino Uno V3 expansion connector</li>
+						<li>Around 13 €</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Microcontroller characteristics</h2>
+					<ul>
+						<li>Arm Cortex-M4 core - frequency up to 80 MHz</li>
+						<li>Floating Point Unit</li>
+						<li>DSP instructions</li>
+						<li>Memory Protection Unit</li>
+						<li>1 MB Flash memory</li>
+						<li>128 KB RAM</li>
+						<li>many interfaces</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Hardware documentation</h2>
+					<ul>
+						<li class="fragment fade-up"><a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html#cad-resources"
+							target="_blank">Board schematics</a> &rArr; how to control external 
+							peripherals
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/datasheet/stm32l476rg.pdf" 
+							target="_blank">Microcontroller datasheet</a> &rArr; microcontroller
+							characteristics - 270 pages
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/reference_manual/rm0351-stm32l47xxx-stm32l48xxx-stm32l49xxx-and-stm32l4axxx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf" 
+							target="_blank">Microcontroller reference manual</a> &rArr; complete
+							information on how to use the microcontroller - 1906 pages
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/programming_manual/pm0214-stm32-cortexm4-mcus-and-mpus-programming-manual-stmicroelectronics.pdf" 
+							target="_blank">Cortex-M4 programming manual</a> &rArr; generic information for 
+							software development - 262 pages
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/en/microcontrollers-microprocessors/stm32l476rg.html#documentation" 
+							target="_blank">Many Application Notes</a> &rArr; "How to..."
+						</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Software documentation</h2>
+					<ul>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/user_manual/um1860-getting-started-with-stm32cubel4-mcu-package-for-stm32l4-series-and-stm32l4-series-stmicroelectronics.pdf" 
+							target="_blank">Getting started with STM32CubeL4</a> &rArr; overview of software 
+							development environment - 31 pages
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/user_manual/um1884-description-of-stm32l4l4-hal-and-lowlayer-drivers-stmicroelectronics.pdf" 
+							target="_blank">Description of STM32L4/L4+ HAL and low-layer drivers</a> - 2604 pages
+						</li>
+						<li class="fragment fade-up"><a href="https://www.st.com/resource/en/user_manual/um2609-stm32cubeide-user-guide-stmicroelectronics.pdf" 
+							target="_blank">STM32CubeIDE user guide</a> - 246 pages
+						</li>
+						<li class="fragment fade-up">
+							etc.
+						</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Schematics: user button</h2>
+					<img src="images/button2.png" height="400">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - schematics</a></div>
+				</section>
+				<section>
+					<h2>Schematics: user LED</h2>
+					<img src="images/led2.png" height="400">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - schematics</a></div>
+				</section>
+				<section>
+					<h2>Datasheet: RAM</h2>
+					<img src="images/staticRam.png" height="400" width="1222">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - datasheet</a></div>
+				</section>
+				<section>
+					<div class="r-stack">
+						<h2 class="fragment fade-out" data-fragment-index="1">Reference manual: memory map</h2>
+						<img src="images/memoryMap.png" height="600" class="fragment fade-in" data-fragment-index="1">
+					</div>
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - reference manual</a></div>
+				</section>
+				<section>
+					<h2>Reference manual: GPIO</h2>
+					<img src="images/gpio.png" height="400">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - reference manual</a></div>
+				</section>
+				<section>
+					<div class="r-stack">
+						<h2 class="fragment fade-out" data-fragment-index="1">Reference manual: timer</h2>
+						<img src="images/timer.png" height="600" class="fragment fade-in" data-fragment-index="1">
+					</div>
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - reference manual</a></div>
+				</section>
+				<section>
+					<h2>Timer interrupt to CPU</h2>
+					<img src="images/timerInterruptNvic.png" height="350">
+					<div class="pbverysmall">Source: <a
+						href="https://community.arm.com/cn/b/blog/posts/2017-cortex-m-whitepaper-english"
+						title="Cortex-M for Beginners" target="_blank">Cortex-M for Beginners</a></div>
+				</section>
+				<section>
+					<div class="r-stack">
+						<h2 class="fragment fade-out" data-fragment-index="1">Reference manual: TIM3 timer</h2>
+						<img src="images/timer3-01.png" height="600" class="fragment fade-in" data-fragment-index="1">
+					</div>
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - reference manual</a></div>
+				</section>
+				<section>
+					<h2>TIM3 on APB1</h2>
+					<img src="images/timer3-02.png">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/en/evaluation-tools/nucleo-l476rg.html"
+						target="_blank">STMicroelectronics - reference manual</a></div>
+				</section>
+				<section>
+					<h2>APB1 clock</h2>
+					<p class="pbcenter">Configurable clock, max 80 MHz</p>
+				</section>
+				<section>
+					<h2>Software components</h2>
+					<img src="images/firmwareComponents.png" height="350">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/resource/en/user_manual/um1860-getting-started-with-stm32cubel4-mcu-package-for-stm32l4-series-and-stm32l4-series-stmicroelectronics.pdf"
+						target="_blank">STMicroelectronics - getting started</a></div>
+				</section>
+				<section>
+					<h2>Software architecture</h2>
+					<img src="images/firmwareArchitecture.png" height="400">
+					<div class="pbverysmall">Source: <a href="https://www.st.com/resource/en/user_manual/um1860-getting-started-with-stm32cubel4-mcu-package-for-stm32l4-series-and-stm32l4-series-stmicroelectronics.pdf"
+						target="_blank">STMicroelectronics - getting started</a></div>
+				</section>
+				<section>
+					<div class="r-stack">
+						<h2 class="fragment fade-out" data-fragment-index="1">STM32CubeIDE</h2>
+						<img src="images/stm32cubeide.png" height="600" class="fragment fade-in" data-fragment-index="1">
+					</div>
+				</section>
+				<section>
+					<h3>Create a new project and configure</h3>
+					<ul>
+						<li>Create a new STM32 project, named <code>blinky</code></li>
+						<li>With the board selector, select <b>NUCLEO-L476RG</b></li>
+						<li>Configure (IOC file):
+							<ul>
+								<li><b>Pinout & Configuration > System Core > SYS</b>: set <b>Debug</b> 
+									to <b>Trace Asynchronous Sw</b></li>
+								<li>Look at <b>Clock Configuration</b>: <b>HCLK</b> is set to 80 MHz</li>
+								<li><b>Pinout & Configuration > Timers > TIM3</b>:
+									<ul>
+										<li>Set <b>Clock Source</b> to <b>Internal Clock</b></li>
+										<li>Set <b>Parameter Settings > Counter Settings > Prescaler</b> to 
+											<code>800</code></li>
+										<li>
+											Set <b>Parameter Settings > Counter Settings > Counter Period</b> to
+											<code>10000</code>
+										</li>
+										<li>
+											Set <b>Parameter Settings > Counter Settings > auto-reload preload</b> to
+											<b>Enable</b>
+										</li>
+										<li>
+											Set <b>NVIC Settings > TIM3 global interrupt</b> to <b>Enabled</b>
+										</li>
+									</ul>
+								</li>
+								<li>Generate code by saving (CTRL-S)</li>
+							</ul>
+						</li>
+					</ul>
+				</section>
+				<section>
+					<h3>TIM3 counter frequency</h3>
+					<img src="images/timer3-03.png">
+					<p class="pbcenter">HCLK to APB1 Timer clocks: 80 MHz</p>
+				</section>
+				<section>
+					<p>Timer prescaler: 800 &rArr; counter frequency = 100 kHz (80 MHz / 800)</p>
+					<p>Counter period: 10000 &rArr; interrupt every 100 ms (1 / (100 kHz / 10000))</p>
+				</section>
+				<section>
+					<h3>Add glue code</h3>
+					<ul>
+						<li>Add call to <code>HAL_TIM_Base_Start_IT</code></li>
+						<li>Define <code>HAL_TIM_PeriodElapsedCallback</code></li>
+						<li>Make it toggle LED2</li>
+						<li>Use <code>HAL_UART_Transmit</code> to display program version</li>
+					</ul>
+				</section>
+				<section>
+					<h3>Repository</h3>
+					<p class="pbcenter">Resulting code is in <a href="https://github.com/PascalBod/stm32-examples"
+						target="_blank"><em>STM32 code examples</em> repository</a> (<code>blinky</code>).</p>
+				</section>
+				<section>
+					<h3>Build, run</h3>
+					<ul>
+						<li>To build: right-click on project name, <b>Build Project</b></li>
+						<li>To run: 
+							<ul>
+								<li><b>Run > Run Configurations...</b></li>
+								<li>Create a new launch configuration</li>
+								<li>Click the <b>Run</b> button</li>
+							</ul>
+						</li>
+						<li>Use a terminal program on the development machine. For linux:
+							<ul>
+								<li>Install <em>python3-serial</em></li>
+								<li>Run <code>miniterm &lt;device&gt; 115200</code></li>
+								<li>(<code>&lt;device&gt;</code> is something like <code>/dev/ttyACM0</code>)</li>
+							</ul>
+						</li>
+						<li>Click the black button on the board: miniterm should display the version string</li>
+					</ul>
+				</section>
+				<section>
+					<h3>Debug</h3>
+					<ul>
+						<li><b>Run > Debug Configurations...</b></li>
+						<li>Use the configuration defined for run</li>
+						<li>Click the <b>Debug</b> button</li>
+						<li>The application stops at the first statement in <code>main</code></li>
+						<li>The code can be run step by step, entering or not every function</li>
+						<li>Variables can be inspected</li>
+						<li>Etc.</li>
+					</ul>
+				</section>
+				<section>
+					<h3>SWV</h3>
+					<p class="pbcenter">Check this <a href="https://github.com/PascalBod/stm32-swv" 
+						target="_blank">page</a> to discover what SWV is and how to use it.</p>
+				</section>
+				<section>
+					<h2>How does the application start?</h2>
+					<p class="pbcenter"> First, let's see what stack and vector table are.</p>
+				</section>
+				<section>
+					<h3>Stack</h3>
+					<p>
+						Memory area used to store temporary data used by the application: function arguments and
+						local variables.
+					</p>
+					<p>
+						The stack grows and shrinks depending on memory needs.
+					</p>
+				</section>
+				<section>
+					<h3>Vector table</h3>
+					<p>
+						Usual definition: data structure associating a list of interrupt handlers to the list of interrupts:
+					</p>
+					<table>
+						<thead>
+							<tr>
+								<th>Interrupt</th>
+								<th>Handler</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>INT 0</td>
+								<td>INT0_handler</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td>INT 1</td>
+								<td>INT1_handler</td>
+							</tr>
+						</tbody>
+						<tbody>
+							<tr>
+								<td>...</td>
+								<td>...</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+				<section>
+					<h3>For a Cortex-M4 core</h3>
+				</section>
+				<section>
+					<p>Generalization:</p>
+					<blockquote>An exception is a condition that changes the normal flow of control 
+						in a program.</blockquote>
+						<div class="pbverysmall">Source: <a href="https://developer.arm.com/documentation/ddi0403/d/System-Level-Architecture/System-Level-Programmers--Model/Overview-of-system-level-terminology-and-operation/Exceptions?lang=en"
+							target="_blank">ARMv7-M Architecture Reference Manual</a></div>
+				</section>
+				<section>
+					<h3>Exceptions</h3>
+					<ul>
+						<li>Reset</li>
+						<li>NMI</li>
+						<li>Hard fault</li>
+						<li>Memory management fault</li>
+						<li>Bus fault</li>
+						<li>Usage fault</li>
+						<li>SVCall</li>
+						<li>PendSV</li>
+						<li>SysTick</li>
+						<li style="color:red">Interrupt (IRQ)</li>
+					</ul>
+				</section>
+				<section>
+					<h3>Exception handlers</h3>
+					<ul>
+						<li style="color:red">Interrupt Services Routines (ISRs)</li>
+						<li>Fault handlers</li>
+						<li>System handlers</li>
+					</ul>
+				</section>
+				<section>
+					<div class="r-stack">
+						<h3 class="fragment fade-out" data-fragment-index="1">Vector table</h3>
+						<img src="images/vectorTable.png" height="600" class="fragment fade-in" data-fragment-index="1">
+					</div>
+				</section>
+				<section>
+					<h3>Question: where is located the vector table?</h3>
+					<p class="pbcenter fragment fade-in">Answer: at the bottom of memory</p>
+				</section>
+				<section>
+					<img src="images/vectorTableLocation.png">
+				</section>
+				<section>
+					<h3>Question: how to define the vector table?</h3>
+					<p class="pbcenter fragment fade-in">Answer: in a specific source code file, the 
+						<em>startup file</em>. Usually, in assembly language.</p>
+					<p class="pbcenter fragment fade-in">In our example: <code>Core/Startup/startup_stm32l476rgtx.s</code></p>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						g_pfnVectors:
+						.word	_estack
+						.word	Reset_Handler
+						.word	NMI_Handler
+						.word	HardFault_Handler
+						.word	MemManage_Handler
+						.word	BusFault_Handler
+						.word	UsageFault_Handler
+						.word	0
+						.word	0
+						.word	0
+						.word	0
+						.word	SVC_Handler
+						...
+					</code></pre>
+				</section>
+				<section>
+					<p>First element: initial stack pointer value, set to <code>_estack</code>.</p>
+					<p>This is the address of the top of the stack.</p>
+					<p>For a Cortex-M, the stack is descending: a new element is added at a lower address.</p>
+				</section>
+				<section>
+					<p><code>_estack</code> is defined in the <a href="https://sourceware.org/binutils/docs/ld/Scripts.html"
+						target="_blank"><em>linker script</em></a>.</p>
+					<p>The linker script describes the memory layout of the executable file.</p>
+					<p>In our example: <code>STM32L476RGTX_FLASH.ld</code>.</p>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+/* Entry Point */
+ENTRY(Reset_Handler)
+
+/* Highest address of the user mode stack */
+_estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
+
+_Min_Heap_Size = 0x200 ; /* required amount of heap */
+_Min_Stack_Size = 0x400 ; /* required amount of stack */
+
+/* Memories definition */
+MEMORY
+{
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 96K
+  RAM2    (xrw)    : ORIGIN = 0x10000000,   LENGTH = 32K
+  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 1024K
+}
+					</code></pre>
+					<p>Three memory <em>regions</em> (there are two RAM blocks in the STM32L476RG).</p>
+				</section>
+				<section>
+					<p>In the startup file, the vector table is defined in the <code>isr_vector</code> <em>section</em>:</p>
+					<pre><code data-trim data-noescape>
+						.section	.isr_vector,"a",%progbits
+						.type	g_pfnVectors, %object
+						.size	g_pfnVectors, .-g_pfnVectors
+					
+					
+					g_pfnVectors:
+						.word	_estack
+						.word	Reset_Handler
+						.word	NMI_Handler
+					</code></pre>
+				</section>
+				<section>
+					<p>In the linker script, the <code>isr_vector</code> region is assigned to the <code>FLASH</code>
+					   memory region:</p>
+					<pre><code data-trim data-noescape>
+						/* Sections */
+						SECTIONS
+						{
+						  /* The startup code into "FLASH" Rom type memory */
+						  .isr_vector :
+						  {
+							. = ALIGN(4);
+							KEEP(*(.isr_vector)) /* Startup code */
+							. = ALIGN(4);
+						  } >FLASH
+						...						
+					</code></pre>
+				</section>
+				<section>
+					<p>More generally:</p>
+					<ul>
+						<li>Every object file contains several sections</li>
+						<li>All sections are grouped and assigned to memory regions depending on their type</li>
+						<li>Common sections:
+							<ul>
+								<li><code>text</code>: code &rArr; Flash</li>
+								<li><code>rodata</code>: read-only data &rArr; Flash</li>
+								<li><code>data</code>: read-write initialized data &rArr; RAM</li>
+								<li><code>bss</code>: uninitialized data &rArr; RAM</li>
+							</ul>
+						</li>
+						<p>(<code>bss</code> comes from <em>Block Started by Symbol</em>, a term used by an assembler in the mid-50s)</p>
+					</ul>
+				</section>
+				<section>
+					<h3>Startup file code</h3>
+					<p>Code = reset handler.</p>
+					<p>Starts by initializing microcontroller's stack pointer (required by first function call).</p>
+					<pre><code data-trim data-noescape>
+						.section	.text.Reset_Handler
+						.weak	Reset_Handler
+						.type	Reset_Handler, %function
+					Reset_Handler:
+					  ldr   sp, =_estack    /* Set stack pointer */					
+					</code></pre>
+				</section>
+				<section>
+					<p>Then, system and data initialization.</p>
+					<pre><code data-trim data-noescape>
+					/* Call the clock system initialization function.*/
+					  bl  SystemInit
+					
+					/* Copy the data segment initializers from flash to SRAM */
+					  ldr r0, =_sdata
+					  ldr r1, =_edata
+					  ldr r2, =_sidata
+					  movs r3, #0
+					  b LoopCopyDataInit
+					
+					CopyDataInit:
+					  ldr r4, [r2, r3]
+					  str r4, [r0, r3]
+					  adds r3, r3, #4
+					
+					LoopCopyDataInit:
+					  adds r4, r0, r3
+					  cmp r4, r1
+					  bcc CopyDataInit
+					  
+					/* Zero fill the bss segment. */
+					  ldr r2, =_sbss
+					  ldr r4, =_ebss
+					  movs r3, #0
+					  b LoopFillZerobss
+					
+					FillZerobss:
+					  str  r3, [r2]
+					  adds r2, r2, #4
+					
+					LoopFillZerobss:
+					  cmp r2, r4
+					  bcc FillZerobss
+					
+					/* Call static constructors */
+					  bl __libc_init_array					
+					</code></pre>
+				</section>
+				<section>
+					<p>Then, calls <code>main</code>.</p>
+					<pre><code data-trim data-noescape>
+					/* Call the application's entry point.*/
+					  bl	main
+					
+					LoopForever:
+					  b LoopForever
+					</code></pre>
+					<p><code>bl</code>: branch with link - the target code may return to the next address (this is a function call).</p>
+					<p><code>b</code>: branch</p>
+				</section>
+				<section>
+					<h3>Question: what happens if <code>main</code> returns?</h3>
+					<p class="fragment fade-in">Answer: the microcontroller enters an infinite loop:</p>
+					<pre class="fragment fade-in"><code data-trim data-noescape>
+						bl	main
+					
+						LoopForever:
+						  b LoopForever
+					</code></pre>
+				</section>
+				<section>
+					<h3>Last step: flashing the microcontroller</h3>
+					<p>The executable file must be written into microcontroller Flash. Three ways:</p>
+					<ul>
+						<li>serial interface (UART, SPI, I2C...) + boot loader</li>
+						<li>JTAG</li>
+						<li>SWD</li>
+					</ul>
+					<p>The ST-LINK interface of the NUCLEO-L476RG board uses SWD.</p>
+				</section>
+				
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				hash: true,
+                controlsTutorial: true,
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+                slideNumber: true
+			});
+		</script>
+	</body>
+</html>
