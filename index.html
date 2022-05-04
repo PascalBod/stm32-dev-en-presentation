@@ -35,6 +35,10 @@
 						</thead>
 						<tbody>
 							<tr>
+								<td>04-May-2022</td>
+								<td>Serial example</td>
+							</tr>
+							<tr>
 								<td>24-Apr-2022</td>
 								<td>First version</td>
 							</tr>
@@ -577,10 +581,264 @@ MEMORY
 					<p>The executable file must be written into microcontroller Flash. Three ways:</p>
 					<ul>
 						<li>serial interface (UART, SPI, I2C...) + boot loader</li>
-						<li>JTAG</li>
-						<li>SWD</li>
+						<li><a href="https://standards.ieee.org/ieee/1149.1/4484/" target="_blank">JTAG</a>
+							 - the generic tool for flashing, debugging and testing</li>
+						<li>SWD - the Arm alternative to JTAG</li>
 					</ul>
 					<p>The ST-LINK interface of the NUCLEO-L476RG board uses SWD.</p>
+					<p class="pbsmaller">JTAG: Joint Test Action Group</p>
+				</section>
+				<section>
+					<h2>UART example</h2>
+					<p>In addition to <code>blinky</code> example:  configures UART2 for interrupt-driven RX.</p>
+					<p>Every received character is echoed back.</p>
+					<p>The source code is in <a href="https://github.com/PascalBod/stm32-examples" target="_blank">
+						this repository</a>, in <code>serial</code> project.</p>
+				</section>
+				<section>
+					<h3>Interrupt enabling</h3>
+					<p>In <code>Core/Src/main.c/MX_USART2_UART_Init()</code>:</p>
+					<pre><code data-trim data-noescape>
+						HAL_UART_Receive_IT(&huart2, &rec_byte, 1);
+					</code></pre>
+				</section>
+				<section>
+					<h3>Interrupt wiring</h3>
+					<p>In <code>Core/Src/stm32l4xx_hal_msp.c/HAL_UART_MspInit()</code>:</p>
+					<pre><code data-trim data-noescape>
+						HAL_NVIC_SetPriority(USART2_IRQn, 0, 1);
+						HAL_NVIC_EnableIRQ(USART2_IRQn);					
+					</code></pre>
+				</section>
+				<section>
+					<h3>ISR</h3>
+					<p>In <code>Core/Src/main.c/HAL_UART_RxCpltCallback()</code></p>
+					<pre><code data-trim data-noescape>
+						void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+						{
+							rec_byte_event = true;
+						}
+					</code></pre>
+					<p>The received byte is stored in <code>rec_byte</code>, passed to initialization function.</p>
+				</section>
+				<section>
+					<h3>Question</h3>
+					<p>The UART2 interrupt vector is <code>USART2_IRQHandler</code>. So, how <code>HAL_UART_RxCpltCallback()</code>
+					is called?</p>
+				</section>
+				<section>
+					<p>In startup file, <code>USART2_IRQHandler</code> is defined in the following way:</p>
+					<pre><code data-trim data-noescape>
+						.weak	USART2_IRQHandler
+						.thumb_set USART2_IRQHandler,Default_Handler
+					</code></pre>
+					<p>This means:</p>
+					<ul>
+						<li><code>USART2_IRQHandler</code> is set to <code>Default_Handler</code> (an infinite loop)</li>
+						<li><code>.weak</code> means: if the application provides another definition (implementation) of
+							<code>USART2_IRQHandler</code>, then this definition will replace the original one.</li>
+					</ul>
+				</section>
+				<section>
+					<p>So, let's add our implementation, to <code>Core/Src/stm32l4xx_it.c</code>:</p>
+					<pre><code data-trim data-noescape>
+						void USART2_IRQHandler(void)
+						{
+							HAL_UART_IRQHandler(&huart2);
+						}
+					</code></pre>
+				</section>
+				<section>
+					<p>But what is <code>HAL_UART_IRQHandler()</code>?!</p>
+					<p class="fragment fade-in">It's the generic HAL function used to process UART interrupts.</p>
+					<p class="fragment fade-in">It is defined in <code>Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c</code>.</p>
+					<p class="fragment fade-in">If no error, it calls the function stored in <code>huart->RxISR</code>,
+						which is <code>UART_RxISR_8BIT()</code>
+					</p>
+					<p class="fragment fade-in">If everything is still OK, this function calls <code>HAL_UART_RxCpltCallback(huart)</code>.
+						And that's it!</p>
+				</section>
+				<section>
+					<h3>Summary</h3>
+					<img src="images/rxUartInterrupt.png">
+				</section>
+				<section>
+					<p>The RX interrupt is disabled by default by the HAL's ISR code.</p>
+					<p class="fragment fade-in" data-fragment-index="1">Consequently, it has to be reenabled by the applications's ISR code:</p>
+					<pre class="fragment fade-in" data-fragment-index="1"><code data-trim data-noescape>
+						void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+						{
+							HAL_UART_Receive_IT(&huart2, &rec_byte, 1);
+							rec_byte_event = true;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<h3>What if the background task is too busy from time to time?</h3>
+					<p class="fragment fade-in">If a new character is received while the previous one has not been processed,
+						the previous one is lost.
+					</p>
+					<p class="fragment fade-in">To prevent this: let's use a 
+						<a href="https://pascalbod.github.io/iot-en-presentation/connectedDevice.html#/7/63"
+						target="_blank">circular buffer</a></p>
+					<p class="fragment fade-in">The source code is in <a href="https://github.com/PascalBod/stm32-examples" 
+						target="_blank">this repository</a>, in <code>serial-buffer</code> project.</p>
+				</section>
+				<section>
+					<p><code>Core/Src/buffer.c</code> implements the buffer.</p>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						static uint16_t inIndex;
+						static uint16_t outIndex;
+						static uint16_t dataLength;
+						static uint8_t ringBuffer[BUFFER_LENGTH];
+						
+						void initBuffer(void) {
+							inIndex = 0;
+							outIndex = 0;
+							dataLength = 0;
+						}						
+					</code></pre>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						void putData(uint8_t data) {
+							ringBuffer[inIndex] = data;
+							// Move inIndex forward.
+							inIndex++;
+							if (inIndex == BUFFER_LENGTH) {
+								inIndex = 0;
+							}
+							dataLength++;
+							if (dataLength == BUFFER_LENGTH + 1) {
+								// Overflow. Move outIndex forward.
+								outIndex++;
+								if (outIndex == BUFFER_LENGTH) {
+									outIndex = 0;
+								}
+								dataLength--;
+							}
+						}
+					</code></pre>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						int getData(void) {
+							if (dataLength == 0) {
+								return BUFFER_EMPTY;
+							}
+							uint8_t dataToReturn = ringBuffer[outIndex];
+							dataLength--;
+							// Move outIndex forward.
+							outIndex++;
+							if (outIndex == BUFFER_LENGTH) {
+								outIndex = 0;
+							}
+							return dataToReturn;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+						{
+							putData(rec_byte);
+							HAL_UART_Receive_IT(&huart2, &rec_byte, 1);
+							rec_byte_event = true;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						while (true)
+						{
+							if (rec_byte_event)
+							{
+								rec_byte_event = false;
+								while (true)
+								{
+									received_byte = getData();
+									if (received_byte != BUFFER_EMPTY)
+									{
+										HAL_UART_Transmit(&huart2, (uint8_t *)&received_byte, 1, TRANSMIT_TIMEOUT);
+									}
+									else
+									{
+										break;
+									}
+								}
+							}
+						}					  
+					</code></pre>
+				</section>
+				<section>
+					<p>We still have a problem: if a byte is received while the background task is updating the circular 
+						buffer pointers and data length, the ISR may introduce inconsistencies.</p>
+				</section>
+				<section>
+					<p>How <code>dataLength</code> is decremented:</p>
+					<pre><code data-trim data-noescape>
+							80005a0:	4b0c      	ldr	r3, [pc, #48]	; (80005d4 <getData+0x54>)
+							80005a2:	881b      	ldrh	r3, [r3, #0]
+							80005a4:	3b01      	subs	r3, #1
+							80005a6:	b29a      	uxth	r2, r3
+							80005a8:	4b0a      	ldr	r3, [pc, #40]	; (80005d4 <getData+0x54>)
+							80005aa:	801a      	strh	r2, [r3, #0]											   
+					</code></pre>
+					<p>Instructions executed by the microcontroller to execute the <code>dataLength--</code> statement.</p>
+				</section>
+				<section>
+					<ul>
+						<li><code>getData()</code> is called. It gets a byte from the buffer, and reads the value of 
+							<code>dataLength</code> from memory in order to decrement it</li>
+						<li><code>putData()</code> is called. As it is called from the ISR, it stops execution of 
+							<code>getData()</code>. It adds a byte to the buffer and increments <code>dataLength</code></li>
+						<li>When <code>getData()</code> is given back control, it goes on, incrementing its value of 
+							<code>dataLength</code> and writing it back to memory. But the value that was incremented was not
+							the right one</li>
+						<li>Result: <code>dataLength</code> is one less than its real value</li>
+					</ul>
+				</section>
+				<section>
+					<p>Solution: make <em>atomic</em> all modifications to the circular buffer.</p>
+					<p class="fragment fade-in">One way to do this: inhibit UART interruptions in <code>getData</code></p>
+				</section>
+				<section>
+					<pre><code data-trim data-noescape>
+						int getData(void) {
+							HAL_NVIC_DisableIRQ(USART2_IRQn);
+							if (dataLength == 0) {
+								HAL_NVIC_EnableIRQ(USART2_IRQn);
+								return BUFFER_EMPTY;
+							}
+							uint8_t dataToReturn = ringBuffer[outIndex];
+							dataLength--;
+							// Move outIndex forward.
+							outIndex++;
+							if (outIndex == BUFFER_LENGTH) {
+								outIndex = 0;
+							}
+							HAL_NVIC_EnableIRQ(USART2_IRQn);
+							return dataToReturn;
+						}
+					</code></pre>
+				</section>
+				<section>
+					<img src="images/interruptNvic.png">
+				</section>
+				<section>
+					<p>While <code>getData</code> is being executed, no UART interrupt will reach the processor.</p>
+					<p>If a byte is received while UART interrupts are inhibited:</p>
+					<ul>
+						<li>The interrupt signal is kept asserted by the UART peripheral</li>
+						<li>The NVIC will forward it to the processor as soon as <code>HAL_NVIC_EnableIRQ</code> is called</li>
+					</ul>
+					<p>Note: only UART interrupts are inhibited.</p>
+				</section>
+				<section>
+					<p>The source code is in <a href="https://github.com/PascalBod/stm32-examples" 
+						target="_blank">this repository</a>, in <code>serial-buffer-atomic</code> project.</p>
 				</section>
 				
 			</div>
